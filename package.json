@@ -7,7 +7,7 @@
   "homepage": "https://github.com/syahiidkamil/mcp-postgres-full-access",
   "repository": {
     "type": "git",
-    "url": "https://github.com/syahiidkamil/mcp-postgres-full-access"
+    "url": "git+https://github.com/syahiidkamil/mcp-postgres-full-access.git"
   },
   "bugs": {
     "url": "https://github.com/syahiidkamil/mcp-postgres-full-access/issues"
