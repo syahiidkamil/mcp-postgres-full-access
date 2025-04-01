@@ -1,0 +1,28 @@
+{
+  "name": "mcp-postgres-advanced",
+  "version": "0.1.0",
+  "description": "Advanced MCP server for PostgreSQL with enhanced schema information and query classification",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "mcp-postgres-advanced": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc && chmod +x dist/index.js",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.1",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/pg": "^8.11.10",
+    "typescript": "^5.6.2"
+  }
+}
