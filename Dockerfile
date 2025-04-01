@@ -9,7 +9,8 @@ COPY package*.json ./
 RUN npm ci
 
 # Copy source code
-COPY . .
+COPY tsconfig.json ./
+COPY src ./src
 
 # Build the application
 RUN npm run build
@@ -27,6 +28,14 @@ RUN npm ci --omit=dev
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
+
+# Create a non-root user and set permissions
+RUN addgroup -S mcp && \
+    adduser -S mcp -G mcp && \
+    chown -R mcp:mcp /app
+
+# Switch to non-root user
+USER mcp
 
 # Set the entrypoint
 ENTRYPOINT ["node", "dist/index.js"]

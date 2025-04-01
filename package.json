@@ -1,21 +1,48 @@
 {
-  "name": "mcp-postgres-advanced",
+  "name": "mcp-postgres-full-access",
   "version": "0.1.0",
-  "description": "Advanced MCP server for PostgreSQL with enhanced schema information and query classification",
+  "description": "Full-access PostgreSQL server for Model Context Protocol with read/write capabilities and enhanced schema metadata",
   "license": "MIT",
+  "author": "Syahiid Kamil (https://github.com/syahiidkamil)",
+  "homepage": "https://github.com/syahiidkamil/mcp-postgres-full-access",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/syahiidkamil/mcp-postgres-full-access"
+  },
+  "bugs": {
+    "url": "https://github.com/syahiidkamil/mcp-postgres-full-access/issues"
+  },
   "type": "module",
   "bin": {
-    "mcp-postgres-advanced": "dist/index.js"
+    "mcp-postgres-full-access": "dist/index.js"
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsc && chmod +x dist/index.js",
+    "build": "tsc && shx chmod +x dist/index.js",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
     "prepare": "npm run build"
   },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "postgres",
+    "postgresql",
+    "database",
+    "llm",
+    "ai",
+    "claude",
+    "full-access",
+    "write-access",
+    "read-write",
+    "dml",
+    "ddl",
+    "schema-explorer",
+    "database-manager",
+    "sql-executor"
+  ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.1",
     "pg": "^8.13.0"
@@ -23,6 +50,10 @@
   "devDependencies": {
     "@types/node": "^20.11.0",
     "@types/pg": "^8.11.10",
+    "shx": "^0.3.4",
     "typescript": "^5.6.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
