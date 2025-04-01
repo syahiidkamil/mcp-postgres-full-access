@@ -1,6 +1,6 @@
 {
   "name": "mcp-postgres-full-access",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Full-access PostgreSQL server for Model Context Protocol with read/write capabilities and enhanced schema metadata",
   "license": "MIT",
   "author": "Syahiid Kamil (https://github.com/syahiidkamil)",
@@ -44,8 +44,9 @@
     "sql-executor"
   ],
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.1",
-    "pg": "^8.13.0"
+    "@modelcontextprotocol/sdk": "^1.8.0",
+    "pg": "^8.13.0",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
