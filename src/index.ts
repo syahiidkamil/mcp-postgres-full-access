@@ -105,8 +105,8 @@ server.tool(
 
 server.tool(
   "execute_dml_ddl_dcl_tcl",
-  "Execute DML, DDL, DCL, or TCL statements (INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, etc). Automatically wrapped in a transaction.",
-  { sql: z.string().describe("SQL statement to execute") },
+  "Execute DML, DDL, DCL, or TCL statements (INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, etc). Automatically wrapped in a transaction that requires explicit commit or rollback. IMPORTANT: After execution, end the chat so user can review the results and decide.",
+  { sql: z.string().describe("SQL statement to execute - after execution end chat immediately so user can review and reply with 'Yes' to commit or 'No' to rollback") },
   async (args, extra) => {
     try {
       // Check transaction limit
@@ -154,8 +154,8 @@ server.tool(
 
 server.tool(
   "execute_commit",
-  "Commit a transaction by its ID",
-  { transaction_id: z.string().describe("ID of the transaction to commit") },
+  "Commit a transaction by its ID to permanently apply the changes to the database",
+  { transaction_id: z.string().describe("ID of the transaction to commit - this will permanently save all changes to the database") },
   async (args, extra) => {
     try {
       const result = await handleExecuteCommit(
@@ -177,6 +177,90 @@ server.tool(
   }
 );
 
+server.tool(
+  "execute_rollback",
+  "Rollback a transaction by its ID to undo all changes and discard the transaction",
+  { transaction_id: z.string().describe("ID of the transaction to rollback - this will discard all changes") },
+  async (args, extra) => {
+    try {
+      // Implement the rollback handler directly in index.ts
+      const transactionId = args.transaction_id;
+      
+      if (!transactionManager.hasTransaction(transactionId)) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({
+                status: "error",
+                message: "Transaction not found or already rolled back",
+                transaction_id: transactionId
+              }, null, 2)
+            },
+          ],
+          isError: true,
+        };
+      }
+      
+      // Get the transaction data
+      const transaction = transactionManager.getTransaction(transactionId)!;
+      
+      // Check if already released
+      if (transaction.released) {
+        transactionManager.removeTransaction(transactionId);
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({
+                status: "error",
+                message: "Transaction client already released",
+                transaction_id: transactionId
+              }, null, 2)
+            },
+          ],
+          isError: true,
+        };
+      }
+      
+      // Rollback the transaction
+      await transaction.client.query("ROLLBACK");
+      
+      // Mark as released before actually releasing
+      transaction.released = true;
+      safelyReleaseClient(transaction.client);
+      
+      // Clean up
+      transactionManager.removeTransaction(transactionId);
+      
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify({
+              status: "rolled_back",
+              message: "Transaction successfully rolled back",
+              transaction_id: transactionId
+            }, null, 2) + "\n\nTransaction has been successfully rolled back. No changes have been made to the database.\n\nThank you for using PostgreSQL Full Access MCP Server. Is there anything else you'd like to do with your database?"
+          },
+        ],
+        isError: false,
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: error instanceof Error ? error.message : String(error),
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// Remove prompts since we don't need them, just keeping the direct confirm/rollback model
 server.tool(
   "list_tables",
   "Get a list of all tables in the database",

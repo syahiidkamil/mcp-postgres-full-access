@@ -1,4 +1,92 @@
-import pg from "pg";
+export async function handleExecuteRollback(
+  transactionManager: TransactionManager, 
+  transactionId: string
+) {
+  if (!transactionId) {
+    return {
+      content: [{ type: "text", text: "Error: No transaction ID provided" }],
+      isError: true,
+    };
+  }
+  
+  // Check if transaction exists
+  if (!transactionManager.hasTransaction(transactionId)) {
+    return {
+      content: [{ 
+        type: "text", 
+        text: JSON.stringify({
+          status: "error",
+          message: "Transaction not found or already rolled back",
+          transaction_id: transactionId
+        }, null, 2) 
+      }],
+      isError: true,
+    };
+  }
+  
+  // Get the transaction data
+  const transaction = transactionManager.getTransaction(transactionId)!;
+  
+  // Check if already released
+  if (transaction.released) {
+    transactionManager.removeTransaction(transactionId);
+    return {
+      content: [{ 
+        type: "text", 
+        text: JSON.stringify({
+          status: "error",
+          message: "Transaction client already released",
+          transaction_id: transactionId
+        }, null, 2) 
+      }],
+      isError: true,
+    };
+  }
+  
+  try {
+    // Rollback the transaction
+    await transaction.client.query("ROLLBACK");
+    
+    // Mark as released before actually releasing
+    transaction.released = true;
+    safelyReleaseClient(transaction.client);
+    
+    // Clean up
+    transactionManager.removeTransaction(transactionId);
+    
+    return {
+      content: [{ 
+        type: "text", 
+        text: JSON.stringify({
+          status: "rolled_back",
+          message: "Transaction successfully rolled back",
+          transaction_id: transactionId
+        }, null, 2) + "\n\nTransaction has been successfully rolled back. No changes have been made to the database.\n\nThank you for using PostgreSQL Full Access MCP Server. Is there anything else you'd like to do with your database?"
+      }],
+      isError: false,
+    };
+  } catch (error: any) {
+    // If there's an error during rollback
+    // Mark as released before actually releasing
+    transaction.released = true;
+    safelyReleaseClient(transaction.client);
+    
+    // Clean up
+    transactionManager.removeTransaction(transactionId);
+    
+    return {
+      content: [{ 
+        type: "text", 
+        text: JSON.stringify({
+          status: "error",
+          message: `Error rolling back transaction: ${error.message}`,
+          transaction_id: transactionId
+        }, null, 2) 
+      }],
+      isError: true,
+    };
+  }
+}import pg from "pg";
 import { TransactionManager } from "./transaction-manager.js";
 import { isReadOnlyQuery, safelyReleaseClient, generateTransactionId } from "./utils.js";
 import { SCHEMA_PATH } from "./types.js";
@@ -87,20 +175,22 @@ export async function handleExecuteDML(
       
       // Don't release the client - it's now associated with the transaction
       
+      // Format a more user-friendly message that prompts for commit
+      const resultObj = {
+        transaction_id: transactionId,
+        status: "pending",
+        result: {
+          command: result.command,
+          rowCount: result.rowCount,
+          execution_time_ms: execTime
+        },
+        timeout_ms: transactionTimeoutMs
+      };
+      
       return {
         content: [{ 
           type: "text", 
-          text: JSON.stringify({
-            transaction_id: transactionId,
-            status: "pending",
-            message: "Transaction started. Use execute_commit to commit your changes.",
-            result: {
-              command: result.command,
-              rowCount: result.rowCount,
-              execution_time_ms: execTime
-            },
-            timeout_ms: transactionTimeoutMs // Inform client about timeout
-          }, null, 2) 
+          text: JSON.stringify(resultObj, null, 2) + "\n\nThe SQL statement has been executed successfully and a transaction has been started.\n\nPLEASE REVIEW THE RESULTS ABOVE AND FOLLOW THESE STEPS:\n1. This conversation will now end so you can review the changes carefully\n2. After reviewing, start a new message and:\n   - Type 'Yes' to COMMIT this transaction and save changes permanently\n   - Type 'No' to ROLLBACK this transaction and discard all changes\n\nThe transaction will automatically roll back if not committed within " + Math.floor(transactionTimeoutMs/1000) + " seconds.\n\nTransaction ID: " + transactionId + "\n\n*** END OF CONVERSATION ***"
         }],
         isError: false,
       };
@@ -191,7 +281,7 @@ export async function handleExecuteCommit(
           status: "committed",
           message: "Transaction successfully committed",
           transaction_id: transactionId
-        }, null, 2) 
+        }, null, 2) + "\n\nTransaction has been successfully committed. All changes have been saved to the database.\n\nThank you for using PostgreSQL Full Access MCP Server. Is there anything else you'd like to do with your database?"
       }],
       isError: false,
     };
