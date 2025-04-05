@@ -263,10 +263,11 @@ server.tool(
 // Remove prompts since we don't need them, just keeping the direct confirm/rollback model
 server.tool(
   "list_tables",
-  "Get a list of all tables in the database",
-  async (extra) => {
+  "Get a list of all tables in the database's schema, default is 'public'",
+  { schema_name: z.string().describe("Name of the schema") },
+  async (args, extra) => {
     try {
-      const result = await handleListTables(pool);
+      const result = await handleListTables(pool, args.schema_name);
       return transformHandlerResponse(result);
     } catch (error) {
       return {
@@ -284,11 +285,12 @@ server.tool(
 
 server.tool(
   "describe_table",
-  "Get detailed information about a specific table",
-  { table_name: z.string().describe("Name of the table to describe") },
+  "Get detailed information about a specific table, including columns, primary keys, foreign keys, and indexes",
+  { table_name: z.string().describe("Name of the table to describe"),
+    schema_name: z.string().describe("Name of the schema").default("public") },
   async (args, extra) => {
     try {
-      const result = await handleDescribeTable(pool, args.table_name);
+      const result = await handleDescribeTable(pool, args.table_name, args.schema_name);
       return transformHandlerResponse(result);
     } catch (error) {
       return {

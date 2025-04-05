@@ -314,7 +314,7 @@ export async function handleExecuteCommit(
   }
 }
 
-export async function handleListTables(pool: pg.Pool) {
+export async function handleListTables(pool: pg.Pool, schemaName: string = "public") {
   const client = await pool.connect();
   try {
     const result = await client.query(`
@@ -327,7 +327,7 @@ export async function handleListTables(pool: pg.Pool) {
       JOIN 
         pg_catalog.pg_class pgc ON t.table_name = pgc.relname
       WHERE 
-        t.table_schema = 'public'
+        t.table_schema = '${schemaName}'
         AND t.table_type = 'BASE TABLE'
       ORDER BY 
         t.table_name
@@ -345,7 +345,7 @@ export async function handleListTables(pool: pg.Pool) {
   }
 }
 
-export async function handleDescribeTable(pool: pg.Pool, tableName: string) {
+export async function handleDescribeTable(pool: pg.Pool, tableName: string, schemaName: string = "public") {
   if (!tableName) {
     return {
       content: [{ type: "text", text: "Error: No table name provided" }],
@@ -369,10 +369,11 @@ export async function handleDescribeTable(pool: pg.Pool, tableName: string) {
       JOIN 
         pg_class ON pg_class.relname = columns.table_name
       WHERE 
-        columns.table_name = $1
+        columns.table_name = '${tableName}'
+        AND columns.table_schema = '${schemaName}'
       ORDER BY 
         ordinal_position
-    `, [tableName]);
+    `);
     
     // Get primary key information
     const pkResult = await client.query(`
@@ -382,9 +383,9 @@ export async function handleDescribeTable(pool: pg.Pool, tableName: string) {
         pg_index i
         JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
       WHERE 
-        i.indrelid = $1::regclass
+        i.indrelid = '${schemaName}.${tableName}'::regclass
         AND i.indisprimary
-    `, [`public.${tableName}`]);
+    `);
     
     // Get foreign key information
     const fkResult = await client.query(`
@@ -400,22 +401,22 @@ export async function handleDescribeTable(pool: pg.Pool, tableName: string) {
         JOIN information_schema.constraint_column_usage AS ccu
           ON ccu.constraint_name = tc.constraint_name
           AND ccu.table_schema = tc.table_schema
-      WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_name = $1
-    `, [tableName]);
+      WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_name = '${tableName}' AND tc.table_schema = '${schemaName}'
+    `);
     
     // Get table description
     const tableDescResult = await client.query(`
       SELECT pg_catalog.obj_description(pgc.oid, 'pg_class') as table_description
       FROM pg_catalog.pg_class pgc
-      WHERE pgc.relname = $1
-    `, [tableName]);
+      WHERE pgc.relname = '${tableName}' AND pgc.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = '${schemaName}')
+    `);
     
     // Get approximate row count
     const rowCountResult = await client.query(`
       SELECT reltuples::bigint AS approximate_row_count
       FROM pg_class
-      WHERE relname = $1
-    `, [tableName]);
+      WHERE relname = '${tableName}' AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = '${schemaName}')
+    `);
     
     // Get indexes
     const indexesResult = await client.query(`
@@ -437,19 +438,20 @@ export async function handleDescribeTable(pool: pg.Pool, tableName: string) {
         AND a.attnum = ANY(ix.indkey)
         AND i.relam = am.oid
         AND t.relkind = 'r'
-        AND t.relname = $1
+        AND t.relname = '${tableName}' AND t.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = '${schemaName}')
       GROUP BY
         i.relname,
         am.amname,
         ix.indisunique
       ORDER BY
         i.relname
-    `, [tableName]);
+    `);
     
     return {
       content: [{ 
         type: "text", 
         text: JSON.stringify({
+          schema_name: schemaName,
           table_name: tableName,
           description: tableDescResult.rows[0]?.table_description || null,
           approximate_row_count: rowCountResult.rows[0]?.approximate_row_count || 0,
