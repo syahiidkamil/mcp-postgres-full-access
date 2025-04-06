@@ -14,6 +14,7 @@ A powerful Model Context Protocol server providing **full read-write access** to
 - [Tools](#tools)
   - [execute_query](#execute_query)
   - [execute_dml_ddl_dcl_tcl](#execute_dml_ddl_dcl_tcl)
+  - [execute_maintenance](#execute_maintenance)
   - [execute_commit](#execute_commit)
   - [execute_rollback](#execute_rollback)
   - [list_tables](#list_tables)
@@ -74,6 +75,12 @@ A powerful Model Context Protocol server providing **full read-write access** to
   - Automatically wrapped in a transaction with configurable timeout
   - Returns a transaction ID for explicit commit
   - **Important safety feature**: The conversation will end after execution, allowing the user to review the results before deciding to commit or rollback
+
+- **execute_maintenance**
+
+  - Execute maintenance commands like VACUUM, ANALYZE, or CREATE DATABASE outside of transactions
+  - Input: `sql` (string): The SQL statement to execute - must be VACUUM, ANALYZE, or CREATE DATABASE
+  - Returns a result object with execution time metrics
 
 - **execute_commit**
 
