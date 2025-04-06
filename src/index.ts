@@ -12,6 +12,7 @@ import {
   handleExecuteQuery,
   handleExecuteDML,
   handleExecuteCommit,
+  handleExecuteMaintenance,
   handleListTables,
   handleDescribeTable,
   handleListResources,
@@ -49,7 +50,7 @@ const transactionManager = new TransactionManager(
 const server = new McpServer(
   {
     name: "postgres-advanced",
-    version: "0.1.0",
+    version: "0.1.1",
   },
   {
     capabilities: {
@@ -137,6 +138,28 @@ server.tool(
         args.sql,
         config.transactionTimeoutMs
       );
+      return transformHandlerResponse(result);
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: error instanceof Error ? error.message : String(error),
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.tool(
+  "execute_maintenance",
+  "Execute maintenance commands like VACUUM, ANALYZE, or CREATE DATABASE outside of transactions",
+  { sql: z.string().describe("SQL statement to execute - must be VACUUM, ANALYZE, or CREATE DATABASE") },
+  async (args, extra) => {
+    try {
+      const result = await handleExecuteMaintenance(pool, args.sql);
       return transformHandlerResponse(result);
     } catch (error) {
       return {
