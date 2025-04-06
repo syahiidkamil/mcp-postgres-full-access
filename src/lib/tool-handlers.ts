@@ -218,6 +218,63 @@ export async function handleExecuteDML(
   }
 }
 
+export async function handleExecuteMaintenance(
+  pool: pg.Pool,
+  sql: string
+) {
+  const client = await pool.connect();
+  try {
+    if (!sql) {
+      safelyReleaseClient(client);
+      return {
+        content: [{ type: "text", text: "Error: No SQL statement provided" }],
+        isError: true,
+      };
+    }
+
+    // Check if the SQL is a maintenance command
+    // VACUUM, ANALYZE, CREATE DATABASE can't be executed in a transaction
+    const isMaintenanceCommand = /^(VACUUM|ANALYZE|CREATE DATABASE)/i.test(sql.trim());
+    if (!isMaintenanceCommand) {
+      safelyReleaseClient(client);
+      return {
+        content: [{ type: "text", text: "Error: Only VACUUM, ANALYZE and CREATE DATABASE commands are allowed" }],
+        isError: true,
+      };
+    }
+
+    const startTime = Date.now();
+    const result = await client.query(sql);
+    const execTime = Date.now() - startTime;
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          status: "completed",
+          command: result.command,
+          execution_time_ms: execTime
+        }, null, 2)
+      }],
+      isError: false,
+    };
+  } catch (error: any) {
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          status: "error",
+          message: `Error executing statement: ${error.message}`,
+          sql: sql
+        }, null, 2)
+      }],
+      isError: true,
+    };
+  } finally {
+    safelyReleaseClient(client);
+  }
+}
+
 export async function handleExecuteCommit(
   transactionManager: TransactionManager, 
   transactionId: string
