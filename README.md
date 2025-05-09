@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/syahiidkamil-mcp-postgres-full-access-badge.png)](https://mseep.ai/app/syahiidkamil-mcp-postgres-full-access)
+
 # PostgreSQL Full Access MCP Server
 
 [![Model Context Protocol](https://img.shields.io/badge/MCP-Compatible-blue.svg)](https://modelcontextprotocol.io)
