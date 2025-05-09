@@ -12,6 +12,7 @@ import {
   handleExecuteQuery,
   handleExecuteDML,
   handleExecuteCommit,
+  handleExecuteMaintenance,
   handleListTables,
   handleDescribeTable,
   handleListResources,
@@ -49,7 +50,7 @@ const transactionManager = new TransactionManager(
 const server = new McpServer(
   {
     name: "postgres-advanced",
-    version: "0.1.0",
+    version: "0.1.1",
   },
   {
     capabilities: {
@@ -137,6 +138,28 @@ server.tool(
         args.sql,
         config.transactionTimeoutMs
       );
+      return transformHandlerResponse(result);
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: error instanceof Error ? error.message : String(error),
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.tool(
+  "execute_maintenance",
+  "Execute maintenance commands like VACUUM, ANALYZE, or CREATE DATABASE outside of transactions",
+  { sql: z.string().describe("SQL statement to execute - must be VACUUM, ANALYZE, or CREATE DATABASE") },
+  async (args, extra) => {
+    try {
+      const result = await handleExecuteMaintenance(pool, args.sql);
       return transformHandlerResponse(result);
     } catch (error) {
       return {
@@ -263,10 +286,11 @@ server.tool(
 // Remove prompts since we don't need them, just keeping the direct confirm/rollback model
 server.tool(
   "list_tables",
-  "Get a list of all tables in the database",
-  async (extra) => {
+  "Get a list of all tables in the database's schema, default is 'public'",
+  { schema_name: z.string().describe("Name of the schema") },
+  async (args, extra) => {
     try {
-      const result = await handleListTables(pool);
+      const result = await handleListTables(pool, args.schema_name);
       return transformHandlerResponse(result);
     } catch (error) {
       return {
@@ -284,11 +308,12 @@ server.tool(
 
 server.tool(
   "describe_table",
-  "Get detailed information about a specific table",
-  { table_name: z.string().describe("Name of the table to describe") },
+  "Get detailed information about a specific table, including columns, primary keys, foreign keys, and indexes",
+  { table_name: z.string().describe("Name of the table to describe"),
+    schema_name: z.string().describe("Name of the schema").default("public") },
   async (args, extra) => {
     try {
-      const result = await handleDescribeTable(pool, args.table_name);
+      const result = await handleDescribeTable(pool, args.table_name, args.schema_name);
       return transformHandlerResponse(result);
     } catch (error) {
       return {
